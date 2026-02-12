@@ -1,0 +1,888 @@
+Project app {
+  database_type: 'PostgreSQL'
+  Note: '''
+    # App Database
+  '''
+}
+
+
+/* ---------- CORE TABLES ---------- */
+Table cylinder {
+  id bigserial [pk, not null]
+  gas_type int // welding, butane, propane
+  title varchar(255) [not null]
+  short_title varchar(255)
+  detection_title varchar(255) [not null]
+  illegal_above_row integer
+  image varchar(255)
+  client_id bigint [not null, ref: > client.id]
+  capacity numeric [not null]
+  display_capacity varchar(255)
+  contract_required bool [default: false]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    (client_id, detection_title) [unique, name: "cylinder_client_id_detection_title_key"]
+    (client_id, title) [unique, name: "cylinder_client_id_title_key"]
+    id [type: btree, unique, name: "ix_cylinder_id"]
+    short_title [type: btree, name: "ix_cylinder_short_title"]
+    title [type: btree, name: "ix_cylinder_title"]
+  }
+}
+
+Table external_cylinder {
+  cylinder_id bigint [pk, not null, ref: > cylinder.id]
+  external_id varchar(255) [not null]
+  empty_cylinder_id varchar(255)
+  gas_id varchar(255)
+  title varchar(255)
+  cylinder_title varchar(255)
+  gas_title varchar(255)
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table chamber {
+  id bigserial [pk, not null]
+  door_number int
+  row int
+  column int
+  side int
+  machine_id bigint [not null, ref: > machine.id]
+  is_full bool [default: false]
+  cylinder_id bigint [ref: > cylinder.id]
+  is_cylinder_full bool [not null]
+  is_active bool [default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    (machine_id) [unique, name: "chamber_machine_key"]
+
+    id [type: btree, unique, name: "ix_chamber_id"]
+  }
+}
+
+Table chamber_history {
+  id bigserial [pk, not null]
+  chamber_id bigint [not null, ref: > chamber.id]
+  load_id bigint [ref: > load.id]
+  order_id bigint [ref: > order.id]
+  user_id bigint [ref: > user.id]
+  is_full bool [not null]
+  cylinder_id bigint [ref: > cylinder.id]
+  is_cylinder_full bool [not null]
+  event int // load, deliver, insert, detect, returned, corrected
+  created_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_chamber_history_id"]
+  }
+}
+
+Table client {
+  id bigserial [pk, not null]
+  parent_id bigint [ref: > client.id]
+  title varchar(255) [not null]
+  full_title varchar(255)
+  fleet_id varchar(255) [unique, not null]
+  is_active bool [default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_client_id"]
+    title [type: btree, unique, name: "ix_client_title"]
+  }
+}
+
+Table api_key {
+  id bigserial [pk, not null]
+  api_key varchar(255) [not null, unique]
+  client_id bigint [ref: > client.id]
+  user_group_id bigint [ref: > user_group.id]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table counter {
+  id integer [pk, not null]
+  type varchar(255) [not null]
+  count integer [not null]
+
+  Indexes {
+    type [type: btree, unique, name: "ix_counter_type"]
+  }
+}
+
+Table credit {
+  id bigserial [pk, not null]
+  original_order_id bigint [ref: > order.id]
+  order_id bigint [ref: > order.id]
+  client_id bigint [not null, ref: > client.id]
+  is_valid bool [not null, default: true]
+  amount numeric [not null]
+  user_id bigint [ref: > user.id]
+  code varchar(50) [not null]
+  expiry_date timestamp
+  note varchar(255)
+  machine_id bigint [ref: > machine.id]
+  cylinder_id bigint [ref: > cylinder.id]
+  creator_id bigint [ref: > user.id]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_credit_id"]
+  }
+}
+
+Table credit_usage {
+    id bigserial [pk, not null]
+    credit_id bigint [not null, ref: > credit.id]
+    order_id bigint [not null, ref: > order.id]
+    amount numeric [not null]
+    created_at timestamp [not null]
+    updated_at timestamp [not null]
+
+    Indexes {
+        id [type: btree, unique, name: "ix_credit_usage_id"]
+    }
+}
+
+Table currency_rate {
+  currency varchar(10) [pk, not null]
+  rate numeric
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table detection_attempt {
+  id bigserial [pk, not null]
+  order_id bigint [not null, ref: > order.id]
+  cylinder_id bigint [ref: > cylinder.id]
+  image varchar(255)
+  detected_identifier varchar(255)
+  confidence numeric [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_detection_attempt_id"]
+    order_id [type: btree, name: "ix_detection_attempt_order_id"]
+  }
+}
+
+Table load {
+  id bigserial [pk, not null]
+  machine_id bigint [not null, ref: > machine.id]
+  user_id bigint [ref: > user.id]
+  fill_order_id bigint [ref: > fill_order.id]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_load_id"]
+  }
+}
+
+Table fill_order {
+  id bigserial [pk, not null]
+  created_by_id bigint [not null, ref: > user.id]
+  assigned_to_id bigint [not null, ref: > user.id]
+  truck_id bigint [not null, ref: > truck.id]
+  notes text
+  travel_document text
+  status int [not null, default: 0] // 0 - pending, 1 - truck assigned 2 - truck dispatched 3 - in progress 4 - completed
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_fill_order_id"]
+  }
+}
+
+Table truck {
+  id bigserial [pk, not null]
+  name varchar(100) [not null]
+  capacity integer [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_truck_id"]
+  }
+}
+
+Table truck_location {
+  id bigserial [pk, not null]
+  fill_order_id bigint [ref: > fill_order.id]
+  truck_id bigint [not null, ref: > truck.id]
+  point geometry(Point, 4326) [not null]
+  created_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_truck_location_history_id"]
+  }
+}
+
+Table fill_order_cylinder {
+  id bigserial [pk, not null]
+  fill_order_id bigint [not null, ref: > fill_order.id]
+  cylinder_id bigint [not null, ref: > cylinder.id]
+  machine_id bigint [not null, ref: > machine.id]
+  count integer [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_fill_order_cylinder_id"]
+  }
+}
+
+Table fix_order {
+  id bigserial [pk, not null]
+  created_by_id bigint [not null, ref: > user.id]
+  assigned_to_id bigint [ref: > user.id]
+  machine_id bigint [not null, ref: > machine.id]
+  status int [not null, default: 0] // 0 - pending, 1 - assigned, 2 - in progress, 3 - completed
+  notes text
+  issue varchar(255) [not null]
+  action text
+  documents varchar(255)
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_fix_order_id"]
+  }
+}
+
+Table machine {
+  id bigserial [pk, not null]
+  client_id bigint [not null, ref: > client.id]
+  api_key varchar(255) [unique, not null]
+  title varchar(100) [not null]
+  number int [unique]
+  url varchar(255) [unique]
+  group_id bigint [ref: > machine_group.id]
+  management_id varchar(50) [unique]
+  type int [not null] // 1 - co2, 2 - propane/welding
+  layout_id int [not null, default: 0] // 0 - none, 1 - single carousel, 2 - double carousel, 3 - shelf
+  terminal_id varchar(255)
+  secret varchar(255)
+  needs_attention bool [default: false]
+  is_active bool [default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  Indexes {
+    (client_id, title) [unique, name: "machine_client_id_title_key"]
+    id [type: btree, unique, name: "ix_machine_id"]
+  }
+}
+
+Table machine_address {
+  id bigserial [pk, not null]
+  machine_id bigint [not null, ref: > machine.id]
+  address text
+  region varchar(255)
+  point geometry(Point, 4326) [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    machine_id [unique, name: "machine_address_machine_id_key"]
+    id [type: btree, unique, name: "ix_machine_address_id"]
+  }
+}
+
+Table machine_lock {
+  id bigserial [pk, not null]
+  machine_id bigint [not null, ref: > machine.id]
+  user_id bigint [not null, ref: > user.id]
+  locked bool [not null]
+  lock_message text
+  lock_reason text
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    machine_id [unique, name: "machine_lock_machine_id_key"]
+    id [type: btree, unique, name: "ix_machine_lock_id"]
+  }
+}
+
+Table machine_note {
+  id bigserial [pk, not null]
+  machine_id bigint [not null, ref: > machine.id]
+  user_id bigint [not null, ref: > user.id]
+  note text
+  is_public bool [not null, default: false] // show to other admins
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    machine_id [unique, name: "machine_note_machine_id_key"]
+    id [type: btree, unique, name: "ix_machine_note_id"]
+  }
+}
+
+Table external_machine {
+  machine_id bigint [pk, not null, ref: > machine.id]
+  external_id varchar(255)
+  title varchar(255)
+  terminal_id varchar(255)
+  store_number varchar(255)
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table machine_cylinder {
+  id bigserial [pk, not null]
+  cylinder_id bigint [not null, ref: > cylinder.id]
+  machine_group_id bigint [not null, ref: > machine_group.id]
+  min integer [not null]
+  target integer
+  order integer [not null]
+  missing_cap_penalty numeric [not null, default: 0]
+  missing_valve_penalty numeric [not null, default: 0]
+  missing_label_penalty numeric [not null, default: 0]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  Indexes {
+    (cylinder_id, machine_group_id) [unique, name: "machine_cylinder_cylinder_id_machine_group_id_key"]
+    id [type: btree, unique, name: "ix_machine_cylinder_id"]
+  }
+}
+
+Table machine_group {
+  id bigserial [pk, not null]
+  client_id bigint [not null, ref: > client.id]
+  title varchar(255) [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    (client_id, title) [unique, name: "machine_group_client_id_title_key"]
+    id [type: btree, unique, name: "ix_machine_group_id"]
+  }
+}
+
+Table machine_group_history {
+  id bigserial [pk, not null]
+  machine_id bigint [not null, ref: > machine.id]
+  group_id bigint [ref: > machine_group.id]
+  user_id bigint [not null, ref: > user.id]
+  created_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_machine_group_history_id"]
+  }
+}
+
+Table machine_status {
+  id bigserial [pk, not null]
+  machine_id bigint [not null, ref: > machine.id]
+  maintainer_id bigint [ref: > user.id]
+  status int [not null, default: 0] // 0 - ready, 1 - checking 2 - error
+  door_status json
+  gas_sensor_status json
+  fan_status json
+  printer_status json
+  payment_terminal_status json
+  carousel_status json
+  camera_status json
+  error text
+  last_status_change timestamp [not null]
+  order_id bigint
+  load_id bigint
+  last_event text
+  component varchar(50)
+  locked bool [default: false]
+  reboot_lock bool [default: false]
+  has_critical_error bool [default: false]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_machine_status_id"]
+    machine_id [type: btree, unique, name: "ix_machine_status_machine_id"]
+  }
+}
+
+Table machine_user {
+  id bigserial [pk, not null] // ADDED
+  user_group_id bigint [not null, ref: > user_group.id]
+  machine_id bigint [ref: > machine.id]
+  created_at timestamp [not null]
+
+  Indexes {
+    (user_group_id, machine_id)       [unique, name: "machine_user_ug_m_key"]  // ADDED
+  }
+}
+
+Table notification {
+  id bigserial [pk, not null]
+  client_id bigint [not null, ref: > client.id]
+  machine_id bigint [ref: > machine.id]
+  title varchar(255) [not null]
+  notification_type_id bigint [not null, ref: > notification_type.id]
+  level int [not null, default: 0] // 0 - info, 1 - warn, 2 - error, 3 - critical
+  content text [not null]
+  read bool [default: false]
+  seen bool [default: false]
+  metadata json [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_notification_id"]
+  }
+}
+
+Table notification_template {
+  id bigserial [pk, not null]
+  level int [not null] // 0 - info, 1 - warn, 2 - error, 3 - critical
+  title varchar(255) [not null]
+  description text [not null]
+  content text [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_notification_template_id"]
+  }
+}
+
+Table notification_type {
+  id bigserial [pk, not null]
+  type varchar(255)
+}
+
+Table user_notifications {
+  id bigserial [pk, not null]
+  notification_type_id bigint [not null, ref: > notification_type.id]
+  user_id bigint [not null, ref: > user.id]
+  email bool [not null, default: false]
+  sms bool [not null, default: false]
+}
+
+Table notification_usage {
+  id bigserial [pk, not null]
+  client_id bigint [not null, ref: > client.id]
+  channel int // 1 - email, 2 - sms, 3 - push notification
+  notification_type_id bigint [not null, ref: > notification_type.id]
+  order_id bigint
+  user_id bigint [ref: > user.id]
+  machine_id bigint [ref: > machine.id]
+  created_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_notification_usage_id"]
+  }
+}
+
+Table payment {
+  id bigserial [pk, not null]
+  order_id bigint [not null, ref: > order.id]
+  payment_method_id bigint [ref: > payment_method.id]
+  reference_token varchar(100) [not null]
+  amount numeric [not null]
+  status int [not null, default: 0] // 0 - pending, 1 - authorized, 2 - success, 3 - failed
+  error text
+  receipt text
+  receipt_url text
+  receipt_number varchar(100)
+  payment_intent_id varchar(255)
+  metadata json
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_payment_id"]
+    order_id [type: btree, unique, name: "ix_payment_order_id"]
+  }
+}
+
+Table refund {
+  id bigserial [pk, not null]
+  payment_id bigint [not null, ref: > payment.id]
+  amount numeric [not null]
+  status int [not null, default: 0] // 0 - pending, 1 - authorized, 2 - success, 3 - failed
+  error text
+  receipt text
+  receipt_url text
+  refunded_by_id bigint [ref: > user.id]
+  metadata json
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_refund_id"]
+    payment_id [type: btree, unique, name: "ix_refund_payment_id"]
+  }
+}
+
+Table payment_method {
+  id bigserial [pk, not null]
+  machine_id bigint [not null, ref: > machine.id]
+  config_id bigint [ref: > payment_method_config.id]
+  is_active bool [default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_payment_method_id"]
+  }
+}
+
+Table payment_method_config {
+  id bigserial [pk, not null]
+  client_id bigint [not null, ref: > client.id]
+  title varchar(100) [not null]
+  method int // payment terminal, vipps, stripe
+  is_cancelable bool [default: false]
+  is_auto_refundable bool [default: false]
+  refund_type int [not null, default: 0] // 0 - none, 1 - full, 2 - partial
+  refund_limit_type int [not null, default: 0] // 0 - none, 1 - last payment, 2 - last successful payment, 3 - past seconds
+  refund_limit_value integer
+  is_active bool [default: true]
+  metadata text
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    (client_id, title) [unique, name: "payment_method_config_client_id_title_key"]
+    id [type: btree, unique, name: "ix_payment_method_config_id"]
+  }
+}
+
+Table permission {
+  id bigserial [pk, not null]
+  title varchar(255) [unique, not null]
+  description text
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_permission_id"]
+  }
+}
+
+Table user_permission {
+  id bigserial [pk, not null]
+  permission_id bigint [not null, ref: > permission.id]
+  user_group_id bigint [not null, ref: > user_group.id]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    (permission_id, user_group_id) [unique, name: "user_permission_permission_id_user_group_id_key"]
+    id [type: btree, unique, name: "ix_user_permission_id"]
+  }
+}
+
+Table schedule {
+  id bigserial [pk, not null]
+  title varchar(255)
+  created_at timestamp [not null]
+}
+
+Table schedule_item {
+  id bigserial [pk, not null]
+  schedule_id bigint [not null, ref: > schedule.id]
+  start_at timestamp [not null]
+  end_at timestamp [not null]
+  updated_at timestamp [not null]
+  created_at timestamp [not null]
+}
+
+Table voucher {
+  id bigserial [pk, not null]
+  price_id bigint [ref: > price.id]
+  machine_group_id bigint [ref: > machine_group.id]
+  amount numeric [not null]
+  reason varchar(255)
+  count integer [not null]
+  code varchar(255)
+  can_stack bool [default: false]
+  is_active bool [default: true]
+  schedule_id bigint [ref: > schedule.id]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    (price_id, schedule_id) [unique, name: "discount_price_id_schedule_id_key"]
+    id [type: btree, unique, name: "ix_discount_id"]
+  }
+}
+
+Table voucher_usage {
+  id bigserial [pk, not null]
+  voucher_id bigint [ref: > voucher.id]
+  user_id bigint [ref: > user.id]
+  order_id bigint [ref: > order.id]
+  redeemed bool [default: false]
+
+  Indexes {
+    (voucher_id, user_id) [unique, name: "voucher_usage_voucher_id_user_id_key"]
+    id [type: btree, unique, name: "ix_voucher_usage_id"]
+  }
+}
+
+Table voucher_cylinder {
+  id bigserial [pk, not null]
+  voucher_id bigint [ref: > voucher.id]
+  cylinder_id bigint [ref: > cylinder.id]
+  count integer [not null, default: 1]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    (voucher_id, cylinder_id) [unique, name: "voucher_cylinder_voucher_id_cylinder_id_key"]
+    id [type: btree, unique, name: "ix_voucher_cylinder_id"]
+  }
+}
+
+Table voucher_machine_group {
+  id bigserial [pk, not null]
+  voucher_id bigint [ref: > voucher.id]
+  machine_group_id bigint [ref: > machine_group.id]
+  count integer
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    (voucher_id, machine_group_id) [unique, name: "voucher_machine_group_voucher_id_machine_group_id_key"]
+    id [type: btree, unique, name: "ix_voucher_machine_group_id"]
+  }
+}
+
+Table voucher_payment_method {
+  id bigserial [pk, not null]
+  voucher_id bigint [ref: > voucher.id]
+  payment_method_id bigint [ref: > payment_method.id]
+  count integer
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    (voucher_id, payment_method_id) [unique, name: "voucher_payment_method_voucher_id_payment_method_id_key"]
+    id [type: btree, unique, name: "ix_voucher_payment_method_id"]
+  }
+}
+
+Table price {
+  id bigserial [pk, not null]
+  in_cylinder_id bigint [ref: > cylinder.id]
+  out_cylinder_id bigint [not null, ref: > cylinder.id]
+  machine_group_id bigint [not null, ref: > machine_group.id]
+  schedule_id bigint [ref: > schedule.id]
+  amount numeric [not null]
+  is_active bool [default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    (in_cylinder_id, out_cylinder_id, machine_group_id) [unique, name: "price_in_cylinder_id_out_cylinder_id_machine_group_id_key"]
+    id [type: btree, unique, name: "ix_price_id"]
+  }
+}
+
+Table price_history {
+  id bigserial [pk, not null]
+  price_id bigint [not null, ref: > price.id]
+  amount numeric [not null]
+  is_active bool [default: true]
+  user_id bigint [ref: > user.id]
+  created_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_price_history_id"]
+  }
+}
+
+Table reserve {
+  id bigserial [pk, not null]
+  user_id bigint [ref: > user.id]
+  order_id bigint [ref: > order.id]
+  cylinder_id bigint [not null, ref: > cylinder.id]
+  machine_id bigint [not null, ref: > machine.id]
+  expires_at timestamp
+  used_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_reserve_id"]
+  }
+}
+
+Table order {
+  id bigserial [pk, not null]
+  machine_id bigint [not null, ref: > machine.id]
+  client_id bigint [not null, ref: > client.id]
+  in_cylinder_id bigint [ref: > cylinder.id]
+  out_cylinder_id bigint [ref: > cylinder.id]
+  in_chamber_id bigint [ref: > chamber.id]
+  out_chamber_id bigint [ref: > chamber.id]
+  requested_price numeric
+  voucher_code varchar(100)
+  abort_reason text
+  type int // 0 for purchase, 1 for exchange
+  paid bool [default: false]
+  delivered bool [default: false]
+  cylinder_returned bool [default: false]
+  status int [not null] // 0 active, 1 canceled, 2 aborted, 3 committed
+  feedback_score integer
+  user_id bigint [ref: > user.id]
+  credit_code varchar(50)
+  creator_id bigint [ref: > user.id]
+  can_exchange bool [not null]
+  in_cylinder_validated bool [default: false]
+  retry_code varchar(50)
+  is_mobile bool [default: false]
+  price_history_id bigint [ref: > price_history.id]
+  metadata json
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_order_id"]
+  }
+}
+
+Table price_adjustment {
+  id bigserial [pk, not null]
+  order_id bigint [ref: > order.id]
+  type varchar(255) [not null]
+  value varchar(255) [not null]
+  amount numeric [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_price_adjustment_id"]
+  }
+}
+
+Table order_event {
+  id bigserial [pk, not null]
+  order_id bigint [ref: > order.id]
+  user_id bigint [ref: > user.id]
+  event_type text
+  event_data json
+  need_attention bool [default: false]
+  error text
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_order_event_id"]
+  }
+}
+
+Table order_note {
+  id bigserial [pk, not null]
+  order_id bigint [ref: > order.id]
+  user_id bigint [ref: > user.id]
+  note text [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_order_note_id"]
+  }
+}
+
+Table user {
+  id bigserial [pk, not null]
+  full_name varchar(255) [not null]
+  email varchar(255) [not null]
+  email_verified bool [default: false]
+  phone varchar(255)
+  phone_verified bool [default: false]
+  password varchar(255) [not null]
+  role int [not null] // 0 superuser, 1 owner, 2 admin, 3 maintainer, 4 operator, 5 driver, 6 customer
+  two_factor_type int // 0 none, 1 email, 2 sms, 3 totp
+  totp_secret varchar(255)
+  client_id bigint [ref: > client.id]
+  group_id bigint [ref: > user_group.id]
+  is_active bool [default: true]
+  default_pin varchar(50)
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    email [type: btree, unique, name: "ix_user_email"]
+    full_name [type: btree, name: "ix_user_full_name"]
+    id [type: btree, unique, name: "ix_user_id"]
+    phone [type: btree, unique, name: "ix_user_phone"]
+  }
+}
+
+Table user_group {
+  id bigserial [pk, not null]
+  title varchar(255) [not null]
+  client_id bigint [not null, ref: > client.id]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    (client_id, title) [unique, name: "user_group_client_id_title_key"]
+    id [type: btree, unique, name: "ix_user_group_id"]
+  }
+}
+
+Table wishlist {
+  id bigserial [pk, not null]
+  user_id bigint [not null, ref: > user.id]
+  cylinder_id bigint [not null, ref: > cylinder.id]
+  machine_id bigint [not null, ref: > machine.id]
+  notification_type_id bigint [not null, ref: > notification_type.id]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_wishlist_id"]
+  }
+}
+
+Table part {
+  id bigserial [pk, not null]
+  name varchar(50)
+  description text
+}
+
+Table part_version {
+  id bigserial [pk, not null]
+  part_id bigint [not null, ref: > part.id]
+  version varchar(50)
+  description text
+}
+
+Table machine_part {
+  id bigserial [pk, not null]
+  machine_id bigint [ref: > machine.id]
+  part_version_id bigint [not null, ref: > part_version.id]
+}
+
+Table command {
+  id bigserial [pk, not null]
+  machine_id bigint [not null, ref: > machine.id]
+  order_id bigint [ref: > order.id]
+  user_id bigint [ref: > user.id]
+  command varchar(100) [not null]
+  data json
+  response text
+  sent bool [default: false]
+  timeout integer [not null]
+  fail_if_not_ready bool [not null]
+  wait_for_response bool [not null]
+  wait_for_connection integer [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    id [type: btree, unique, name: "ix_command_id"]
+  }
+}

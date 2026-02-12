@@ -1,0 +1,91 @@
+basePath: /
+definitions:
+  util.CustomError:
+    properties:
+      error_code:
+        type: string
+      message:
+        type: string
+    type: object
+host: localhost:7070
+info:
+  contact:
+    email: aria@example.com
+    name: Aria Gorzin
+    url: http://example.com
+  description: Product Information Management API
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://example.com/terms/
+  title: APP API
+  version: "2.0"
+paths:
+  /upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a new image file (jpeg or png), with a size limit of 5MB.
+      parameters:
+      - description: Image file to upload
+        in: formData
+        name: image
+        required: true
+        type: file
+      - description: A name to associate with the image
+        in: formData
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: File uploaded successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/util.CustomError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/util.CustomError'
+      security:
+      - BearerAuth: []
+      summary: Upload an image
+      tags:
+      - upload
+  /upload/{filename}:
+    get:
+      description: Serves an uploaded image by its filename.
+      parameters:
+      - description: Filename of the image to view
+        in: path
+        name: filename
+        required: true
+        type: string
+      produces:
+      - image/png
+      - image/jpeg
+      responses:
+        "200":
+          description: The image file
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/util.CustomError'
+      summary: View an uploaded image
+      tags:
+      - upload
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

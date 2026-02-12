@@ -1,0 +1,55 @@
+version: "3.9"
+services:
+  postgres:
+    platform: linux/x86_64
+    image: postgis/postgis:17-3.5-alpine
+    container_name: postgres
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=app
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      # Jaeger UI
+      - "16686:16686"
+      # OTLP gRPC receiver for traces (OpenTelemetry Collector default)
+      - "4317:4317"
+      # OTLP HTTP receiver for traces (OpenTelemetry Collector default)
+      - "4318:4318"
+      # Legacy Jaeger Thrift protocol (optional)
+      - "14250:14250"
+      # Zipkin compatible port (optional)
+      - "9411:9411"
+    environment:
+      # Optional: set an in-memory storage limit for traces during development
+      - MEMORY_MAX_TRACES=100000
+
+
+  # api2:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: api2
+  #   ports:
+  #     - "9090:9090"
+  #   environment:
+  #     - DB_SOURCE=postgresql://root:secret@postgres:5432/pim?sslmode=disable
+  #     - REDIS_ADDRESS=redis:6379
+  #   depends_on:
+  #     - postgres2
+  #     - redis2
+  #   entrypoint: ["/app/wait-for.sh", "postgres:5432", "--", "/app/start.sh"]
+  #   command: ["/app/main"]
+volumes:
+  pgdata:

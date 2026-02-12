@@ -1,0 +1,87 @@
+-- migrate:down
+BEGIN;
+
+-- Drop tables (CASCADE handles FK dependencies)
+DROP TABLE IF EXISTS "command" CASCADE;
+
+DROP TABLE IF EXISTS "machine_part" CASCADE;
+DROP TABLE IF EXISTS "part_version" CASCADE;
+DROP TABLE IF EXISTS "part" CASCADE;
+
+DROP TABLE IF EXISTS "wishlist" CASCADE;
+
+DROP TABLE IF EXISTS "order_note" CASCADE;
+DROP TABLE IF EXISTS "order_event" CASCADE;
+DROP TABLE IF EXISTS "price_adjustment" CASCADE;
+DROP TABLE IF EXISTS "detection_attempt" CASCADE;
+DROP TABLE IF EXISTS "order" CASCADE;
+
+DROP TABLE IF EXISTS "reserve" CASCADE;
+
+DROP TABLE IF EXISTS "refund" CASCADE;
+DROP TABLE IF EXISTS "payment" CASCADE;
+
+DROP TABLE IF EXISTS "payment_method" CASCADE;
+DROP TABLE IF EXISTS "payment_method_config" CASCADE;
+
+DROP TABLE IF EXISTS "voucher_payment_method" CASCADE;
+DROP TABLE IF EXISTS "voucher_machine_group" CASCADE;
+DROP TABLE IF EXISTS "voucher_cylinder" CASCADE;
+DROP TABLE IF EXISTS "voucher_usage" CASCADE;
+DROP TABLE IF EXISTS "voucher" CASCADE;
+
+DROP TABLE IF EXISTS "schedule_item" CASCADE;
+DROP TABLE IF EXISTS "schedule" CASCADE;
+
+DROP TABLE IF EXISTS "user_permission" CASCADE;
+DROP TABLE IF EXISTS "permission" CASCADE;
+
+DROP TABLE IF EXISTS "credit_usage" CASCADE;
+DROP TABLE IF EXISTS "credit" CASCADE;
+
+DROP TABLE IF EXISTS "price_history" CASCADE;
+DROP TABLE IF EXISTS "price" CASCADE;
+
+DROP TABLE IF EXISTS "notification_usage" CASCADE;
+DROP TABLE IF EXISTS "user_notifications" CASCADE;
+DROP TABLE IF EXISTS "notification_template" CASCADE;
+DROP TABLE IF EXISTS "notification" CASCADE;
+DROP TABLE IF EXISTS "notification_type" CASCADE;
+
+DROP TABLE IF EXISTS "machine_user" CASCADE;
+DROP TABLE IF EXISTS "machine_status" CASCADE;
+DROP TABLE IF EXISTS "machine_cylinder" CASCADE;
+DROP TABLE IF EXISTS "external_machine" CASCADE;
+DROP TABLE IF EXISTS "machine_note" CASCADE;
+DROP TABLE IF EXISTS "machine_lock" CASCADE;
+DROP TABLE IF EXISTS "machine_address" CASCADE;
+DROP TABLE IF EXISTS "machine_group_history" CASCADE;
+DROP TABLE IF EXISTS "machine_group" CASCADE;
+DROP TABLE IF EXISTS "machine" CASCADE;
+
+DROP TABLE IF EXISTS "fix_order" CASCADE;
+DROP TABLE IF EXISTS "fill_order_cylinder" CASCADE;
+DROP TABLE IF EXISTS "truck_location" CASCADE;
+DROP TABLE IF EXISTS "truck" CASCADE;
+DROP TABLE IF EXISTS "fill_order" CASCADE;
+
+DROP TABLE IF EXISTS "load" CASCADE;
+
+DROP TABLE IF EXISTS "currency_rate" CASCADE;
+DROP TABLE IF EXISTS "counter" CASCADE;
+DROP TABLE IF EXISTS "api_key" CASCADE;
+
+DROP TABLE IF EXISTS "chamber_history" CASCADE;
+DROP TABLE IF EXISTS "chamber" CASCADE;
+
+DROP TABLE IF EXISTS "external_cylinder" CASCADE;
+DROP TABLE IF EXISTS "cylinder" CASCADE;
+
+DROP TABLE IF EXISTS "user_group" CASCADE;
+DROP TABLE IF EXISTS "user" CASCADE;
+DROP TABLE IF EXISTS "client" CASCADE;
+
+-- Drop extension (only if you want to fully remove PostGIS from the DB)
+DROP EXTENSION IF EXISTS postgis;
+
+COMMIT;
